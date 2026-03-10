@@ -1,4 +1,4 @@
-name: Deploy Application
+name: Deploy to Azure VM
 
 on:
   push:
@@ -10,30 +10,25 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
 
-    - name: Checkout Code
-      uses: actions/checkout@v3
+      - name: Deploy to VM
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          password: ${{ secrets.VM_PASSWORD }}
+          port: 22
+          script: |
+            cd /var/www/backend
+            git pull origin main
+            npm install
+            pm2 restart backend
 
-    - name: Deploy Backend
-      uses: appleboy/ssh-action@v1.0.0
-      with:
-        host: ${{ secrets.VM_HOST }}
-        username: ${{ secrets.VM_USER }}
-        key: ${{ secrets.VM_PASSWORD }}
-        script: |
-          cd /var/www/backend
-          git pull origin main
-          npm install
-          pm2 restart backend || pm2 start app.js --name backend
+            cd /var/www/frontend
+            git pull origin main
+            npm install
+            npm run build
 
-    - name: Deploy Frontend
-      uses: appleboy/ssh-action@v1.0.0
-      with:
-        host: ${{ secrets.VM_HOST }}
-        username: ${{ secrets.VM_USER }}
-        key: ${{ secrets.VM_SSH_KEY }}
-        script: |
-          cd /var/www/frontend
-          git pull origin main
-          npm install
-          npm run build
+            sudo systemctl reload nginx
